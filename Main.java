@@ -2,10 +2,9 @@ package integrador2;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
+import java.util.Set;
 
-import integrador2.herramientas.*;
-import integrador2.herramientas.DoubleLinkedList.DoubleLinkedList;
-import integrador2.herramientas.BinaryTree.BinarySearchTree;
+import integrador2.tools.*;
 
 public class Main {
     private static final int CANTIDAD_DE_JUGADORES = 4;
@@ -18,6 +17,8 @@ public class Main {
     private static BinarySearchTree<Jugador> registroDeParticipantes = new BinarySearchTree<>();
     private static DoubleLinkedList<Jugador> rankingGeneral = new DoubleLinkedList<>();
     private static ArrayList<Integer> idsRegistrados = new ArrayList<>();
+    
+    private static int puntajeGanado;
 
     public static void main(String[] args) {
         cargarMazo();
@@ -56,11 +57,7 @@ public class Main {
                     seleccionarJugadores();
                     break;
                 case '3':
-                    if (jugadoresElegidos.size() == CANTIDAD_DE_JUGADORES) {
-                        jugarPartidaCompleta();
-                    } else {
-                        System.out.println("> Error: Primero debes seleccionar los 4 jugadores (opción 2).");
-                    }
+                    jugarPartidaCompleta();    
                     break;
                 case '4':
                     mostrarRanking();
@@ -79,15 +76,27 @@ public class Main {
         System.out.println("Programa finalizado...");
     }
 
+    //Inicio: Registrar estudiantes
     private static void registrarEstudiante() {
         String nombre = Helper.getString("Ingrese nombre: ");
         String apellido = Helper.getString("Ingrese apellido: ");
-        int edad = Helper.getInteger("Ingrese edad: ");
-        int id = idsAleatorios();
-        registroDeParticipantes.add(new Jugador(id, nombre, apellido, edad));
-        System.out.println("> Estudiante registrado con éxito. ID asignado: " + id);
+        while (true) {
+			Integer edad = Helper.getInteger("Ingrese edad: ");
+			if (validarEdad(edad)){
+				int id = idsAleatorios();
+		        registroDeParticipantes.add(new Jugador(id, nombre, apellido, edad));
+		        System.out.println("> Estudiante registrado con éxito. ID asignado: " + id);
+				break;
+			}
+			else
+				System.out.println("> No se a podido registrar estudiante. Edad fuera de rango (12 a 20). Ingrese una valida");
+        }
     }
 
+    private static boolean validarEdad(Integer edad) {
+    	return edad>=12 && edad<=20;
+    }
+    
     private static int idsAleatorios() {
         Random rand = new Random();
         int idGenerado;
@@ -97,7 +106,9 @@ public class Main {
         idsRegistrados.add(idGenerado);
         return idGenerado;
     }
-
+    //Fin
+    
+    //Inicio: Seleccionar jugadores del arbol
     private static void seleccionarJugadores() {
         if (registroDeParticipantes.NodeCount() < CANTIDAD_DE_JUGADORES) {
             System.out.println("La cantidad de estudiantes registrados tiene que ser 4 o superior.");
@@ -151,33 +162,22 @@ public class Main {
         } while (opcion != 'a' && opcion != 'b');
         return opcion;
     }
-
-    private static void mostrarRanking() {
-        System.out.println("\n--- RANKING GENERAL ---");
-        if (rankingGeneral.size() == 0) {
-            System.out.println("Todavía no hay jugadores en el ranking.");
-            return;
-        }
-        int posicion = 1;
-        for (Jugador jugador : rankingGeneral) {
-            System.out.println("[" + posicion++ + "] " + jugador.getPuntajeMax() + " pts. " + jugador);
-        }
-    }
-
+    //Fin
+    
+    //Inicio: Jugar las tres partidas
     private static void jugarPartidaCompleta() {
+    	if (jugadoresElegidos.size() < CANTIDAD_DE_JUGADORES) {
+    		System.out.println("Primero debes seleccionar los 4 jugadores (opción 2).");
+    		return;
+    	}
         System.out.println("\n--- INICIANDO PARTIDA DE " + CANTIDAD_DE_RONDAS + " RONDAS ---");
         for (Carta carta : mazoDeCartas) {
             carta.setDisponible(true);
         }
-        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
-            Jugador jugador = jugadoresElegidos.remove();
-            jugador.reiniciarPartida();
-            jugadoresElegidos.add(jugador);
-        }
 
         for (int ronda = 1; ronda <= CANTIDAD_DE_RONDAS; ronda++) {
             System.out.println("\n# RONDA " + ronda);
-            iniciarRonda();
+            iniciarRonda();//Resetear booleanos (tienenAs y tienenComodin)
             repartirCartas();
             int posicionGanador = compararCartas();
             mostrarJugadores(posicionGanador);
@@ -193,47 +193,6 @@ public class Main {
             Jugador jugador = jugadoresElegidos.remove();
             jugador.iniciarRonda();
             jugadoresElegidos.add(jugador);
-        }
-    }
-
-   private static void mostrarJugadores(int posicionGanador) {
-        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
-            Jugador jugador = jugadoresElegidos.remove();
-            String ganador = "";
-            if (i == posicionGanador) {
-                ganador = " <- GANADOR DE LA RONDA";
-            }
-            System.out.println(" Jugador " + (i + 1) + ": " + jugador
-                    + ", puntos de la ronda: " + jugador.getPuntajeRonda()
-                    + " [AS (x2): " + jugador.getTieneAs()
-                    + ", COMODÍN (+100): " + jugador.getTieneComodin() + "]" + ganador);
-    
-            jugadoresElegidos.add(jugador);
-        }
-    }
-
-    private static void mostrarGanadorFinal() {
-        int puntajeMaximo = Integer.MIN_VALUE;
-        Jugador ganador = null;
-        boolean empate = false;
-
-        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
-            Jugador jugador = jugadoresElegidos.remove();
-            int puntajeTotal = jugador.getPuntajeTotal();
-            if (puntajeTotal > puntajeMaximo) {
-                puntajeMaximo = puntajeTotal;
-                ganador = jugador;
-                empate = false;
-            } else if (puntajeTotal == puntajeMaximo) {
-                empate = true;
-            }
-            jugadoresElegidos.add(jugador);
-        }
-
-        if (empate) {
-            System.out.println("> La partida terminó empatada con " + puntajeMaximo + " puntos.");
-        } else {
-            System.out.println("> El ganador de la partida es: " + ganador + ". Puntaje total: " + puntajeMaximo);
         }
     }
 
@@ -270,82 +229,138 @@ public class Main {
             System.out.println("> La ronda terminó en empate. Cada jugador conserva sus cartas.");
         } else {
             Jugador ganador = obtenerGanador(posicionGanador);
-            System.out.println("> Ganador de la ronda: " + ganador);
+            System.out.println("> Ganador de la ronda: - - - - -");
+            System.out.println(" "+ganador + ". Recoge las cartas de los perdedores. Puntaje ganado: ["+puntajeGanado+"]");
+            puntajeGanado = 0;
         }
         return posicionGanador;
     }
 
     private static int buscarPosicionGanador() {
-        int posicionGanador = -1;
-        int puntajeMayor = Integer.MIN_VALUE;
-        int cantidadEmpatados = 0;
-        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
-            Jugador jugador = jugadoresElegidos.remove();
-            int puntaje = jugador.sumarCartasDeLaRonda();
-            if (Boolean.TRUE.equals(jugador.getTieneAs())) {
-                puntaje *= 2;
-            }
-            jugador.setPuntajeRonda(puntaje);
-            if (puntaje > puntajeMayor) {
-                puntajeMayor = puntaje;
-                posicionGanador = i;
-                cantidadEmpatados = 1;
-            } else if (puntaje == puntajeMayor) {
-                cantidadEmpatados++;
-            }
-            jugadoresElegidos.add(jugador);
-        }
-        if (cantidadEmpatados > 1) {
-            return -1;
-        } else 
-            return posicionGanador;
+	    int posicionGanador = -1, puntajeMayor = 0;
+	    boolean empate = false;
+	    for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
+	        Jugador jugador = jugadoresElegidos.remove();
+	        int puntaje = jugador.puntajeObtenidoRonda();
+	        int sumarValoresDeCartas = jugador.puntajeObtenidoRondaSinAs();
+	        puntajeGanado += sumarValoresDeCartas; // Es para mostrar puntaje ganado
+	        jugador.setPuntajeRonda(puntaje);
+	        if (puntaje > puntajeMayor) {
+	            puntajeMayor = puntaje;
+	            posicionGanador = i;
+	            empate = false;
+	        } else if (puntaje == puntajeMayor) {
+	        	empate = true;
+	        }
+	        jugadoresElegidos.add(jugador);
+	    }
+	    if (empate) {
+	    	return -1;
+	    }
+	    return posicionGanador;
     }
-
+    
     private static Jugador obtenerGanador(int posicionGanador) {
-        Stack<Carta> cartasPerdedoras = new Stack<>();
-        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
-            Jugador jugador = jugadoresElegidos.remove();
-            if (i != posicionGanador) {
-                cartasPerdedoras.push(jugador.getPilaPersonal().pop());
-            }
-            jugadoresElegidos.add(jugador);
-        }
-
-        Jugador ganador = null;
+    	Jugador ganador = null;
+    	// Buscar al jugador ganador
         for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
             Jugador jugador = jugadoresElegidos.remove();
             if (i == posicionGanador) {
-                while (!cartasPerdedoras.isEmpty()) {
-                    jugador.addCartaPilaPersonal(cartasPerdedoras.pop());
-                }
                 ganador = jugador;
+            }
+            jugadoresElegidos.add(jugador);
+        }
+        // Pasar la cartas de los perdedores al ganador
+        for (int j = 0; j < CANTIDAD_DE_JUGADORES; j++) {
+            Jugador jugador = jugadoresElegidos.remove();
+            if (j != posicionGanador) {
+                jugador.transferirCartasAlGanador(ganador);
             }
             jugadoresElegidos.add(jugador);
         }
         return ganador;
     }
+    
+    private static void mostrarJugadores(int posicionGanador) {
+    	System.out.println("> Jugadas de la ronda: - - - - -");
+	   for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
+	       Jugador jugador = jugadoresElegidos.remove();
+	       String ganador = "";
+	       if (i == posicionGanador) {
+	           ganador = " <- GANADOR DE LA RONDA";
+	       }
+	       System.out.println(" Jugador " + (i + 1) + ": " + jugador
+	               + ", puntos de la ronda: " + jugador.getPuntajeRonda()
+	               + " [AS (x2): " + jugador.getTieneAs()
+	               + ", COMODÍN (+100): " + jugador.getTieneComodin() + "]" + ganador);
+	       jugador.setPuntajeRonda(0);
+	       jugadoresElegidos.add(jugador);
+	   }
+	   System.out.println("Obs: En el caso que un jugador obtenga un 'AS' (carta con valor 1) en una ronda, éste lo habilitará a duplicar el puntaje total obtenido en la ronda.");
+	}
 
+    private static void mostrarGanadorFinal() {
+        int puntajeMaximo = Integer.MIN_VALUE;
+        Jugador ganador = null;
+        boolean empate = false;
+        for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
+            Jugador jugador = jugadoresElegidos.remove();
+            int puntajeTotal = jugador.puntajeObtenidoJuego();
+            if (puntajeTotal > puntajeMaximo) {
+                puntajeMaximo = puntajeTotal;
+                ganador = jugador;
+                empate = false;
+            } else if (puntajeTotal == puntajeMaximo) {
+                empate = true;
+            }
+            jugadoresElegidos.add(jugador);
+        }
+
+        if (empate) {
+            System.out.println("> La partida terminó empatada con [" + puntajeMaximo + "] puntos.");
+        } else {
+            System.out.println("# GANADOR FINAL");
+            System.out.println("> "+ganador+ ", Puntaje acumulado: [" + puntajeMaximo+"]");
+        }
+    	System.out.println("Obs: Un jugador obtiene su puntaje de competencia sumando el valor de las cartas que obtuvo a lo largo de las rondas efectuadas.  ");
+    }
+    //Fin
+    
+    //Inicio: Ranking
     private static void actualizarRanking() {
         for (int i = 0; i < CANTIDAD_DE_JUGADORES; i++) {
             Jugador jugador = jugadoresElegidos.remove();
 
             for (int j = 0; j < rankingGeneral.size(); j++) {
-                if (rankingGeneral.getPositio(j).getId() == jugador.getId()) {
-                    rankingGeneral.removeInPosition(j);
+                if (rankingGeneral.getPosition(j).getId() == jugador.getId()) {
+                    rankingGeneral.removePosition(j);
                     break;
                 }
             }
 
             int posicion = 0;
             while (posicion < rankingGeneral.size()
-                    && rankingGeneral.getPositio(posicion).getPuntajeMax() >= jugador.getPuntajeMax()) {
+                    && rankingGeneral.getPosition(posicion).getPuntajeMax() >= jugador.getPuntajeMax()) {
                 posicion++;
             }
             rankingGeneral.addInPosition(posicion, jugador);
             if (rankingGeneral.size() >= 10) {
                 rankingGeneral.removeLast();
             }
-            jugadoresElegidos.add(jugador);
+            //jugadoresElegidos.add(jugador);
         }
     }
+
+    private static void mostrarRanking() {
+        System.out.println("\n--- RANKING GENERAL ---");
+        if (rankingGeneral.size() == 0) {
+            System.out.println("Todavía no hay jugadores en el ranking.");
+            return;
+        }
+        int posicion = 1;
+        for (Jugador jugador : rankingGeneral) {
+            System.out.println("[" + posicion++ + "º] " + jugador.getPuntajeMax() + " pts. " + jugador);
+        }
+    }
+    //Fin
 }
